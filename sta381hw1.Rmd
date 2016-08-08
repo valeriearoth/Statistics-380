@@ -1,0 +1,261 @@
+---
+title: 'STA 380, Part 2: Exercises 1'
+author: "Valerie Roth"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Probability Practice
+
+### Part A
+
+First, I compute the probability that a user said "yes" given that they were a Truthful Clicker.
+
+P(Y|RC) + P(Y|TC) = .65
+
+.15 + P(Y|TC) = .65
+
+P(Y|TC) = .5
+
+Then, I compute the probability that a user said "no" given that they were a Truthful Clicker.
+
+P(N|RC) + P(N|TC) = .35
+
+.15 + P(N|TC) = .35
+
+P(N|TC) = .2
+
+I can check that I did not make a mistake by applying the law of total probability. The sum of all possible outcomes should be one.
+
+Total Probability:
+
+P(Y|TC) = .5
+
+P(N|TC) = .2
+
+P(Y|RC) = .15
+
+P(N|RC) = .15
+
+Total: 1
+
+To calculate the fraction of Truthful Clickers who answered "yes," I divide the probability that a Truthful Clicker responds "yes" by the sum of the probabilities of every response a Truthful Clicker could give (this is "yes" and "no").
+
+P(Y|TC)/(P(Y|TC) + P(N|TC)) = .5/(.5+.2) = 5/7
+
+I find that the fraction of people who are Truthful Clickers who answered "yes" is 5/7.
+
+### Part B
+
+From the problem description, we know that:
+
+P(tests positive|has disease) = 0.993
+
+P(tests positive|doesn't have disease) = 0.0001
+
+P(has disease) = 0.000025
+
+P(doesn't have disease) = 0.999975
+
+P(tests positive) = P(tests positive|has disease)\*P(has disease) + P(tests positive|doesn't have disease)\*P(doesn't have disease) = 0.993\*0.000025 + 0.0001\*0.999975 = 0.0001248225
+
+We want to find P(has disease|tests positive). To do this we can use Bayes' Rule.
+
+With Bayes' Rule, this is equivalent to (P(tests positive|has disease)*P(has disease))/P(tests positive).
+
+(0.993 * 0.000025)/0.0001248225 = 0.1988824130265
+
+If someone tests positive, there is about a 19.9% chance that they have the disease. In light of this calculation, having a universal testing policy for this disease does not make sense. If someone tests positive, it is still unlikely that they actually have the disease.
+
+### Exploratory Analysis: Green Buildings
+
+First, I did a simple linear regression using only green\_rating as a predictor. I got -0.6632 as a coefficient for green\_rating. The fact that this coefficient is negative is interesting because it means that given a building where everything else is equal, adding a green rating to that building may actually make the rent cheaper. The rent per square foot without the green\_rating is given by the coefficient: \$27.55.
+
+```{r, echo = FALSE}
+set.seed(1)
+setwd("~/Documents/Statistics Class/STA380/data")
+greenbuildings = read.csv("greenbuildings.csv")
+attach(greenbuildings)
+
+greenlm = lm(cluster_rent~green_rating, data = greenbuildings)
+
+print(greenlm)
+```
+
+Of course, the Excel guru found that having a green building increases rent. How can this be? To explain, I will show the correlation between green\_rating and all of the other predictors.
+
+```{r, echo = FALSE}
+library(corrplot)
+correlation = cor(greenbuildings)
+corrplot(correlation, method="circle")
+```
+
+Looking at this matrix, we see that green\_rating is positively correlated with size, leasing\_rate, class\_a, LEED, Energystar and amenities. These things could be considered "perks," and therefore may be driving the increase in rent for green\_buildings more than the certification itself.
+
+Furthermore, green\_rating is negatively correlated with age, renovated, class\_b, and hd\_total07. This means that green buildings are likely newer, not in need of renovations as much as non-energy star buildings, probably mostly "A" class, and do not need to be heated as much.
+
+This could certainly explain why green buildings are positively correlated with cluster rent. 
+
+The guru's error was essentially that the correlation between green\_rating and cluster\_rent was causation. He should have realized that there could be (and were) confounding variables like some of the ones listed above are in his analysis.
+
+### Bootstrapping
+
+First, I performed the even split. After 20 days, my original $100000 would have turned into the amount below.
+
+```{r, echo = FALSE, message = FALSE}
+set.seed(1)
+library(mosaic)
+library(fImport)
+
+mystocks = c("SPY", "TLT", "LQD", "EEM", "VNQ")
+myprices = yahooSeries(mystocks, from='2012-01-01', to='2016-07-30')
+
+YahooPricesToReturns = function(series) {
+  mycols = grep('Adj.Close', colnames(series))
+  closingprice = series[,mycols]
+  N = nrow(closingprice)
+  percentreturn = as.data.frame(closingprice[2:N,]) / as.data.frame(closingprice[1:(N-1),]) - 1
+  mynames = strsplit(colnames(percentreturn), '.', fixed=TRUE)
+  mynames = lapply(mynames, function(x) return(paste0(x[1], ".PctReturn")))
+  colnames(percentreturn) = mynames
+  as.matrix(na.omit(percentreturn))
+}
+
+myreturns = YahooPricesToReturns(myprices)
+
+totalwealth = 100000
+weights = c(0.2, 0.2, 0.2, .2, .2)
+holdings = weights*totalwealth
+n_days = 20
+wealthtracker = rep(0, n_days)
+for(today in 1:n_days) {
+  return.today = resample(myreturns, 1, orig.ids=FALSE)
+  holdings = holdings + holdings*return.today
+  totalwealth = sum(holdings)
+  wealthtracker[today] = totalwealth
+}
+totalwealth
+```
+
+When correlations between stocks are positive, there is more risk and reward associated with that stock. Below, we see that:
+* SPY and TLT are negatively correlated (less risk/reward)
+
+* SPY and LQD are not correlated (not particularly risky or safe)
+
+* SPY and EEM are positively correlated (more risk/reward)
+
+* SPY and VNQ are positively correlated (more risk/reward)
+
+* TLT and LQD are positively correlated (more risk/reward)
+
+* TLT and EEM are negatively correlated (less risk/reward)
+
+* TLT and VNQ are not correlated (not particularly risky or safe)
+
+* LQD and EEM are not correlated (not particularly risky or safe)
+
+* LQD and VNQ are not correlated (not particularly risky or safe)
+
+* EEM and VNQ are positively correlated (more risk/reward)
+
+```{r, echo = FALSE}
+pairs(myreturns)
+```
+
+**My safe portfolio includes EEM, SPY and TLT, with stock in each in approximately equal amounts.** To check for safety, I look at the following three pairs:
+
+* EEM and SPY are positively correlated (sharply)
+
+* EEM and TLT are negatively correlated (not sharply)
+
+* SPY and TLT are negatively correlated (not sharply)
+
+This means that when EEM is doing well, SPY and TLT are not doing well (but each to a lesser extent than EEM). This balances out well. When SPY and TLT are doing well, EEM is not doing well. This creates a more balanced portfolio with less risk and less reward.
+
+The results of my safe portfolio after 20 days is below:
+
+```{r, echo = FALSE}
+set.seed(1)
+mystocks = c("EEM", "SPY", "TLT")
+myprices = yahooSeries(mystocks, from='2012-01-01', to='2016-07-30')
+
+myreturns = YahooPricesToReturns(myprices)
+
+totalwealth = 100000
+weights = c(0.33, 0.33, 0.34)
+holdings = weights*totalwealth
+n_days = 20
+wealthtracker = rep(0, n_days)
+for(today in 1:n_days) {
+  return.today = resample(myreturns, 1, orig.ids=FALSE)
+  holdings = holdings + holdings*return.today
+  totalwealth = sum(holdings)
+  wealthtracker[today] = totalwealth
+}
+totalwealth
+```
+
+**My aggressive portfolio includes SPY, EEM and VNQ, with stock in each in approximately equal amounts.** To check for potential risk/reward, I look at the following three pairs:
+
+* SPY and EEM are positively correlated
+
+* SPY and VNQ are positively correlated
+
+* EEM and VNQ are positively correlated
+
+This means that when these stocks are doing well, there could be a great deal of reward. When they are doing poorly, your entire portfolio is doing poorly and this causes risk.
+
+The results of my aggressive portfolio after 20 days is below:
+
+```{r, echo = FALSE}
+set.seed(1)
+mystocks = c("SPY", "EEM", "VNQ")
+myprices = yahooSeries(mystocks, from='2012-01-01', to='2016-07-30')
+
+myreturns = YahooPricesToReturns(myprices)
+
+totalwealth = 100000
+weights = c(0.33, 0.33, 0.34)
+holdings = weights*totalwealth
+n_days = 20
+wealthtracker = rep(0, n_days)
+for(today in 1:n_days) {
+  return.today = resample(myreturns, 1, orig.ids=FALSE)
+  holdings = holdings + holdings*return.today
+  totalwealth = sum(holdings)
+  wealthtracker[today] = totalwealth
+}
+totalwealth
+```
+
+To determine which portfolio allocation is right for the user, one would have to ask themselves if they were willing to risk more of their money to potentially make more or if they simply want a safer allocation.
+
+### Market segmentation
+
+I chose to use k-means clustering to see if I could divide the users into different groups. This would be useful, because if NutrientWater understood its market groups better, it could target them more specifically.
+
+I chose 7 centers for my clusters. I also set iter.max to 30, which is much higher than the default of 10 so it would converge. Below, you can see a table representing how many users ended up in each cluster.
+
+```{r, echo = FALSE}
+setwd("~/Documents/Statistics Class/STA380/data")
+set.seed(1)
+socialmarketing = read.csv("social_marketing.csv")
+sm_scaled = scale(socialmarketing[-1], center=TRUE, scale=TRUE)
+
+cluster_all = kmeans(sm_scaled, centers=7, nstart=50, iter.max=30)
+
+table(cluster_all$cluster)
+```
+
+If you want to learn more about a particular cluster, you can look at the results below. For example, cluster 1 does not involve tv_film, fashion, or music to a significant degree but it does involve religion, school and parenting heavily. These users may be driven to buy NutrientWater because of values that they hold and want to share with their children. They are likely not motivated to buy this beverage because of trends.
+
+```{r, echo = FALSE}
+cluster_all$centers
+```
+
+Alternatively, cluster 6 is the most influenced by tv\_film. It is also influenced by photo\_sharing, chatter, and shopping. This cluster of twitter users is likely much more tech-savvy and likely to buy vitamin water because it is trendy.
+
+That said, there are many more people in cluster 1 than cluster 6 according to the first table. Therefore, to increase sales, it may be wise to spend more time marketing to the first group.
